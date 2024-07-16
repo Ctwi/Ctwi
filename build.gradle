@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.ctwi'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation files('libs/mysql-connector-j-9.0.0.jar')
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
