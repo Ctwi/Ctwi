@@ -3,46 +3,45 @@ package com.ctwi.migration;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Migrator {
-    private String basedir;
-    private String executor;
+    private String basedir; // マイグレーションファイルのベースディレクトリ
+    private String executor; // マイグレーションを実行するユーザーの名前
 
-    public Migrator(String basedir, String executor){
+    // コンストラクタ: マイグレーションのベースディレクトリと実行者を初期化
+    public Migrator(String basedir, String executor) {
         this.basedir = basedir;
         this.executor = executor;
     }
 
-    public void execute(String url, String username, String password) throws SQLException,Exception{
-
-        try(var con = DriverManager.getConnection(url, username, password)) {
-            createTables(con);
+    // マイグレーションを実行するメインメソッド
+    public void execute(String url, String username, String password) throws SQLException, Exception {
+        // try-with-resources文を使用してデータベース接続を確立し、自動的にクローズ
+        try (var con = DriverManager.getConnection(url, username, password)) {
+            createTables(con); // マイグレーションテーブルとセマフォテーブルを作成
 
             List<MigrationHistory> histories = fetchMigrationHistories(con);
             Set<String> ignoreSet = histories.stream()
                     .map(MigrationHistory::getName)
                     .collect(Collectors.toSet());
 
+            // 過去のマイグレーション履歴を取得
             List<MigrationFile> files = loadMigrationFiles(basedir);
+            // 過去のマイグレーションファイル名のセットを作成
             List<MigrationFile> filteredFiles = files.stream()
                     .filter(f -> !ignoreSet.contains(f.getName()))
                     .toList();
             if (filteredFiles.isEmpty()) return;
 
             semaphoreLock(con);
-            try {
+            try { // フィルタリングされたマイグレーションファイルを順に実行
                 for (MigrationFile k : filteredFiles) {
                     migrate(con, k.getQueries());
                     insertMigrationHistory(con, k.getName(), k.getQueries());
@@ -53,7 +52,7 @@ public class Migrator {
         }
     }
 
-    private void createTables(Connection con) throws SQLException{
+    private void createTables(Connection con) throws SQLException {
         String sql = """
                 CREATE TABLE IF NOT EXISTS _migrations (
                     filename VARCHAR(255) NOT NULL,
@@ -70,16 +69,15 @@ public class Migrator {
                 """;
 
         for (String q : sql.split(";")) {
-            System.out.println("-----------");
-            System.out.println(q);
-            System.out.println("-----------");
             try (var ps = con.prepareStatement(q)) {
-                ps.execute();
+                ps.execute(); // SQLステートメントを実行
             }
         }
     }
 
+    // 過去のマイグレーション履歴をデータベースから取得するメソッド
     private List<MigrationHistory> fetchMigrationHistories(Connection con) throws SQLException {
+        // マイグレーション履歴を取得するSQLクエリ
         String sql = """
                 select filename, executed_at from _migrations
                 """;
@@ -87,6 +85,7 @@ public class Migrator {
              ResultSet rs = ps.executeQuery()) {
             List<MigrationHistory> buffer = new ArrayList<>();
 
+            // 結果セットを反復処理し、マイグレーション履歴オブジェクトを作成
             while (rs.next()) {
                 MigrationHistory h = new MigrationHistory(
                         rs.getString("filename"),
@@ -99,15 +98,17 @@ public class Migrator {
         }
     }
 
+    // マイグレーションファイルをディレクトリから読み込むメソッド
     private List<MigrationFile> loadMigrationFiles(String dir) throws Exception {
         Path path = Paths.get(dir);
         List<MigrationFile> buffer = new ArrayList<>();
 
+        // ディレクトリ内のファイルをリストアップ
         try (Stream<Path> files = Files.list(path)) {
             for (Path f : files.toList()) {
                 String name = f.getFileName().toString();
                 String queries = Files.readString(f);
-                buffer.add(new MigrationFile(name,queries));
+                buffer.add(new MigrationFile(name, queries));
             }
         }
 
@@ -120,28 +121,28 @@ public class Migrator {
                 INSERT INTO _semaphores (username, description) VALUES ('migration', ?)
                 """;
         try (PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, this.executor);
+            ps.setString(1, this.executor); // 実行者の名前を設定
             ps.executeUpdate();
         }
     }
 
+    // 指定されたクエリをデータベースで実行するメソッド
     private void migrate(Connection con, String queries) throws SQLException {
-        for (String q : queries.split(";")) {
-            System.out.println("-----------");
-            System.out.println(q);
-            System.out.println("-----------");
+        for (String q : queries.split(";")) { //あいうえお
+            if (queries.trim().isEmpty()) continue;
             try (var ps = con.prepareStatement(q)) {
                 ps.execute();
             }
         }
     }
 
+    // マイグレーション履歴をデータベースに挿入するメソッド
     private void insertMigrationHistory(Connection con, String name, String queries) throws SQLException {
         String sql = """
                 insert into _migrations (filename, queries) values (?, ?)
                 """;
         try (PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, name);
+            ps.setString(1, name); // ファイル名を設定
             ps.setString(2, queries);
             ps.executeUpdate();
         }
