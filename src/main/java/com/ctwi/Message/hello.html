@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <title>はじめてのAPI</title>
+</head>
+
+<body>
+<h1>あいさつAPI</h1>
+<p>名前を教えて下さい</p>
+<input id="input" type="text" value="名前"/>
+<button type="button" onclick="connectApi()">送信！</button>
+<button type="button" onclick="clearText()">クリア</button>
+<p id="text"></p>
+</body>
+
+<script>
+    async function connectApi() {
+        // テキストエリアの入力値を取得
+        const inputValue = document.getElementById("input");
+        const name = inputValue.value;
+        try {
+            const url = "http://localhost:8080/api/users/userAPI?name=" + name;
+            // 例外が発生した場合は、catchへ移動
+            const response = await fetch(url, {
+                method: "GET",
+            });
+            if (!response.ok) {
+                switch (response.status) {
+                    default:
+                        // 不明なエラーの場合は、ステータスを含めて表示する
+                        const err_code = response.status;
+                        const err_msg =
+                            "情報を取得できませんでした。（E:" + err_code + ")";
+                        throw new Error(err_msg);
+                }
+            } else {
+                const reserved = await response.json();
+                // htmlのpタグ内に、受信したあいさつメッセージを表示
+                const message = document.getElementById("text");
+                message.textContent = reserved.message;
+            }
+        } catch (err_msg) {
+            alert(err_msg);
+        }
+    }
+
+    function clearText() {
+        // テキストエリアとメッセージ表示をクリア
+        document.getElementById("input").value = "";
+        document.getElementById("text").textContent = "";
+    }
+</script>
+</html>
