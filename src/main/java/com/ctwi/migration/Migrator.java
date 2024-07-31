@@ -11,6 +11,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+//テーブルをいちいちcreateTableしなくていいように（排他処理も）
+//差分チェックアップデーター
+
 public class Migrator {
     private String basedir; // マイグレーションファイルのベースディレクトリ
     private String executor; // マイグレーションを実行するユーザーの名前

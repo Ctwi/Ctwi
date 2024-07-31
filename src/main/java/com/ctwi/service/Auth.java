@@ -9,6 +9,7 @@ import java.security.SecureRandom;
 public class Auth {
 
 }
+//https://stackoverflow.com/questions/12109877/pbekeyspec-with-byte-array-argument-instead-of-ascii
 
 class Pbkdf2 {
 
