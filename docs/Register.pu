@@ -1,0 +1,16 @@
+@startuml
+
+actor       ユーザ       as user
+participant ブラウザ as browser
+participant API as api
+database    Database    as db
+
+user -> browser : 新規登録
+browser -> api : 新規登録(username, password)
+api -> db : insert(username, password_hash, salt)
+
+db --> api : ok
+api --> browser : cookieに乗せる
+browser --> user : ok
+
+@enduml
