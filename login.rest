@@ -1,8 +1,7 @@
-POST http://localhost:8080/api/users/register HTTP/1.1
+POST http://localhost:8080/api/users/login HTTP/1.1
 content-type: application/json
 
 {
-    "username": "gggggasd",
     "email": "gfgfgg@gmail.com",
     "password": "1234512345"
 }

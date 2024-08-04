@@ -2,12 +2,34 @@ package com.ctwi.service;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.*;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Base64;
+
+import static com.ctwi.service.Pbkdf2.GenerateKey;
+import static org.springframework.cache.interceptor.SimpleKeyGenerator.generateKey;
 
 public class Auth {
+   public static byte[] generateSalt(int length) {
+       byte[] salt = new byte[length];
+       SecureRandom random = new SecureRandom();
+       random.nextBytes(salt);
+       return salt;
+   }
 
+   public static String encodePassword(String password, byte[] salt, int iterationCount, int keyLength) {
+       byte[] passwordBytes = password.getBytes();
+       byte[] hash = GenerateKey(passwordBytes, passwordBytes.length, salt, salt.length, iterationCount, keyLength);
+       return Base64.getEncoder().encodeToString(hash);
+   }
+
+   public static boolean verifyPassword(String password, String hashedPassword, String saltBase64, int iterationCount, int keyLength) {
+       byte[] salt = Base64.getDecoder().decode(saltBase64);
+       String encodedPassword = encodePassword(password, salt, iterationCount, keyLength);
+       return encodedPassword.equals(hashedPassword);
+   }
 }
 //https://stackoverflow.com/questions/12109877/pbekeyspec-with-byte-array-argument-instead-of-ascii
 
