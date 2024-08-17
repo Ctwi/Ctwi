@@ -1,12 +1,10 @@
-package com.ctwi.controller.model;
+package com.ctwi.auth.repository;
 
 import com.ctwi.service.Auth;
 
 import java.sql.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
-public class RestToDatabase {
+public class AuthRepository {
 
     private static final String DB_URL = "jdbc:mysql://localhost:13306/db";
     private static final String DB_USER = "user";
@@ -69,8 +67,11 @@ public class RestToDatabase {
         return Auth.verifyPassword(password, user.hashedPassword, user.salt, ITERATION_COUNT, KEY_LENGTH);
     }
 
+    public String createSession(String email) {
+    }
+
     public static class User {
-        public String email;
+
         public String hashedPassword;
         public String salt;
     }

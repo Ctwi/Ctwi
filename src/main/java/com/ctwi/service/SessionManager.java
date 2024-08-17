@@ -1,32 +1,42 @@
 package com.ctwi.service;
 
 
+import com.ctwi.auth.repository.AuthRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+@Service
 public class SessionManager {
+    private AuthRepository authRepo;
 
-    private static final Map<String, String> sessions = new HashMap<>();
-
-    public static String createSession(String email) {
-        String sessionId = UUID.randomUUID().toString();
-        sessions.put(sessionId, email);
-        return sessionId;
+    @Autowired
+    public SessionManager(AuthRepository authRepo) {
+        this.authRepo = authRepo;
     }
 
-    public static boolean isValidSession(String sessionId) {
+    private final Map<String, String> sessions = new HashMap<>();
+
+    public String createSession(String email) {
+        return authRepo.createSession(email);
+    }
+
+    public boolean isValidSession(String sessionId) {
         return sessions.containsKey(sessionId);
     }
 
-    private static String generateSessionId() {
+    private String generateSessionId() {
         return java.util.UUID.randomUUID().toString();
     }
 
-    public static String getEmailBySessionId(String sessionId) {
+    public String getEmailBySessionId(String sessionId) {
         return sessions.get(sessionId);
     }
 
-    public static void invalidateSession(String sessionId) {
+    public void invalidateSession(String sessionId) {
         sessions.remove(sessionId);
     }
 }

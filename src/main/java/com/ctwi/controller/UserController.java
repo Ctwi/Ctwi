@@ -1,9 +1,11 @@
 package com.ctwi.controller;
 
+import com.ctwi.auth.repository.AuthRepository;
 import com.ctwi.controller.model.*;
 import com.ctwi.service.Auth;
 import com.ctwi.service.SessionManager;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,24 +18,27 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.util.Base64;
-import java.util.Objects;
 
 
 @RestController
 @RequestMapping("/api/users")
 
 public class UserController {
+    private final SessionManager service;
+    @Autowired
+    public UserController(SessionManager service) {
+        this.service = service;
+    }
+
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest input) {
         if(input.username == null || input.username.length() <= 3) {
-            return new ResponseEntity<>(RegisterResponse.createError("BAD_USERNAME"), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new RegisterResponse().withError("BAD_USERNAME"), HttpStatus.BAD_REQUEST);
         }
         if(input.password == null || input.username.length() <= 5) {
-            return new ResponseEntity<>(RegisterResponse.createError("BAD_PASSWORD"), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new RegisterResponse().withError("BAD_PASSWORD"), HttpStatus.BAD_REQUEST);
         }
 
         //salt生成
@@ -45,9 +50,9 @@ public class UserController {
 
         //db接続
         try {
-            RestToDatabase.insertUser(input.username,input.email,hashedPassword,saltBase64);
+            AuthRepository.insertUser(input.username,input.email,hashedPassword,saltBase64);
         } catch (SQLException e) {
-            return new ResponseEntity<>(RegisterResponse.createError("SERVER_ERROR"), HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(new RegisterResponse().withError("SERVER_ERROR"), HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         return new ResponseEntity<>(RegisterResponse.createSuccess(), HttpStatus.OK);
@@ -56,39 +61,39 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest input, HttpServletResponse response) {
         if(input.email == null || input.email.length() <= 10) {
-            return new ResponseEntity<>(LoginResponse.loginError("BAD_EMAIL"), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new LoginResponse().withError("BAD_EMAIL"), HttpStatus.BAD_REQUEST);
         }
         if(input.password == null || input.password.length() <= 5) {
-            return new ResponseEntity<>(LoginResponse.loginError("BAD_PASSWORD"), HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(new LoginResponse().withError("BAD_PASSWORD"), HttpStatus.BAD_REQUEST);
         }
 
         //db接続
         try {
             //dbからuserを取得
-            RestToDatabase.User user = RestToDatabase.fetchUserByEmail(input.email);
+            AuthRepository.User user = AuthRepository.fetchUserByEmail(input.email);
             if (user == null) {
-                return new ResponseEntity<>(LoginResponse.loginError("USER_NOT_FOUND"), HttpStatus.UNAUTHORIZED);
+                return new ResponseEntity<>(new LoginResponse().withError("USER_NOT_FOUND"), HttpStatus.UNAUTHORIZED);
             }
 
             //ユーザー情報が存在する場合、password認証
-            boolean isAuthenticated = RestToDatabase.authenticateUser(input.email, input.password);
+            boolean isAuthenticated = AuthRepository.authenticateUser(input.email, input.password);
             if (!isAuthenticated) {
-                return new ResponseEntity<>(LoginResponse.loginError("INVALID_PASSWORD"), HttpStatus.UNAUTHORIZED);
+                return new ResponseEntity<>(new LoginResponse().withError("INVALID_PASSWORD"), HttpStatus.UNAUTHORIZED);
             }
 
             //認証成功、セッションIdを生成して、Cookieに設定
-            String sessionId = SessionManager.createSession(input.email);
+            String sessionId = this.service.createSession(input.email);
             Cookie cookie = new Cookie("SESSIONID", sessionId);
             cookie.setHttpOnly(true);
             cookie.setPath("/");
             response.addCookie(cookie);
 
-            return new ResponseEntity<>(LoginResponse.loginSuccess(), HttpStatus.OK);
+            return new ResponseEntity<>(LoginResponse.createSuccess(), HttpStatus.OK);
         } catch (SQLException e) {
-            return new ResponseEntity<>(LoginResponse.loginError("SERVER_ERROR"), HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(new LoginResponse().withError("SERVER_ERROR"), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-    @PostMapping("/validateSession")
+    @PostMapping("/me")
     public ResponseEntity<String> validateSession(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
@@ -96,8 +101,8 @@ public class UserController {
                 if ("SESSIONID".equals(cookie.getName())) {
                     String sessionId = cookie.getValue();
                     // セッションIDの検証処理
-                    if (SessionManager.isValidSession(sessionId)) {
-                        return new ResponseEntity<>("Session is valid", HttpStatus.OK);
+                    if (this.service.isValidSession(sessionId)) {
+                        return new ResponseEntity<>(sessionId, HttpStatus.OK);
                     } else {
                         return new ResponseEntity<>("Invalid session", HttpStatus.UNAUTHORIZED);
                     }

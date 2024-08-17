@@ -11,10 +11,16 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.websocket.Session;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
 
 public class AuthenticationFilter implements Filter {
+    private final SessionManager service;
+
+    public AuthenticationFilter(SessionManager service) {
+        this.service = service;
+    }
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -37,7 +43,7 @@ public class AuthenticationFilter implements Filter {
             }
         }
 
-        if (sessionId == null || SessionManager.getEmailBySessionId(sessionId) == null) {
+        if (sessionId == null || this.service.getEmailBySessionId(sessionId) == null) {
             httpResponse.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

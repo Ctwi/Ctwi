@@ -5,3 +5,7 @@ content-type: application/json
     "email": "gfgfgg@gmail.com",
     "password": "1234512345"
 }
+
+###
+POST http://localhost:8080/api/users/me HTTP/1.1
+Content-Type: application/json
